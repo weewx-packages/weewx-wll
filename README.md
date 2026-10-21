@@ -65,10 +65,10 @@ This repository continues `jonotaegi/weewx-wll` with its original Git history.
 Original authors retain their copyrights. The driver is GPL-3.0-or-later;
 `install.py` is GPL-3.0-only. See `LICENSE` and source headers.
 
-Version 0.2.0 supports WeeWX 5 and Python 3.10 through 3.14. Install with:
+Version 0.2.1 supports WeeWX 5 and Python 3.10 through 3.14. Install with:
 
 ```
-weectl extension install https://github.com/weewx-packages/weewx-wll/archive/refs/tags/v0.2.0.zip
+weectl extension install https://github.com/weewx-packages/weewx-wll/archive/refs/tags/v0.2.1.zip
 ```
 
 Set `host` in `[WLL]`. Optional `timeout` defaults to 5 seconds. To use separate

@@ -33,7 +33,7 @@ import weewx
 import weewx.drivers
 
 DRIVER_NAME = 'WLL'
-DRIVER_VERSION = '0.2.0'
+DRIVER_VERSION = '0.2.1'
 
 MM_TO_INCH = 0.0393701
 
