@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# Modified 2026-10-22 by weewx-packages.
 # -*- coding: utf-8 -*-
 # WeatherLink Live (WLL) driver for WeeWX
 #
@@ -32,7 +33,7 @@ import weewx
 import weewx.drivers
 
 DRIVER_NAME = 'WLL'
-DRIVER_VERSION = '0.1'
+DRIVER_VERSION = '0.2.0'
 
 MM_TO_INCH = 0.0393701
 
@@ -99,7 +100,7 @@ class WLL(weewx.drivers.AbstractDevice):
         self.host = stn_dict.get('host')
 
         if self.host is None:
-            logerr("The WeatherLink Live hostname or ip address is required.")
+            raise ValueError("The WeatherLink Live hostname or ip address is required.")
 
         self.service_url = "http://%s:80/v1/current_conditions" % self.host
 
@@ -108,11 +109,18 @@ class WLL(weewx.drivers.AbstractDevice):
         if self.poll_interval < 10:
             logerr("The `poll_interval` parameter should be 10 or greater.")
 
+        self.timeout = float(stn_dict.get('timeout', 5))
+        self.iss_id = stn_dict.get('iss_id')
+        self.wind_id = stn_dict.get('wind_id', self.iss_id)
+        self.pressure_field = stn_dict.get('pressure_field', 'altimeter')
+        if self.pressure_field not in ('altimeter', 'barometer'):
+            raise ValueError('pressure_field must be altimeter or barometer')
         self.hardware = stn_dict.get('hardware')
 
         self.last_rain_storm = None
         self.last_rain_storm_start_at = None
 
+    @property
     def hardware_name(self):
         return self.hardware
 
@@ -124,9 +132,10 @@ class WLL(weewx.drivers.AbstractDevice):
 
                 try:
 
-                    response = requests.get(self.service_url)
+                    response = requests.get(self.service_url, timeout=self.timeout)
+                    response.raise_for_status()
 
-                except Exception as exception:
+                except requests.RequestException as exception:
 
                     logerr("Error connecting to the WeatherLink Live device.")
                     logerr("%s" % exception)
@@ -147,6 +156,14 @@ class WLL(weewx.drivers.AbstractDevice):
                 for condition in data['data']['conditions']:
 
                     data_structure_type = condition["data_structure_type"]
+                    if data_structure_type == 1:
+                        txid = str(condition.get('txid'))
+                        is_iss = self.iss_id is None or txid == str(self.iss_id)
+                        is_wind = self.wind_id is None or txid == str(self.wind_id)
+                        # A separate wind transmitter reports null ISS fields.
+                        condition = {key: value for key, value in condition.items()
+                                     if value is not None and
+                                     (is_wind if key.startswith('wind_') else is_iss)}
 
                     # 1 = ISS Current Conditions record
                     if data_structure_type == 1:
@@ -191,10 +208,13 @@ class WLL(weewx.drivers.AbstractDevice):
                                     rain_count_size = 0.2 * MM_TO_INCH
 
                                 elif rain_collector_type == 3:
-                                    rain_count_size = 0.1
+                                    rain_count_size = 0.1 * MM_TO_INCH
 
                                 elif rain_collector_type == 4:
-                                    rain_count_size = 0.001 * MM_TO_INCH
+                                    rain_count_size = 0.001
+
+                                if "rainfall_daily" in condition:
+                                    _packet['dayRain'] = float(condition['rainfall_daily']) * rain_count_size
 
                                 if "rain_rate_last" in condition:  # most recent valid rain rate **(counts/hour)**
                                     _packet.update({'rainRate': float(condition["rain_rate_last"]) * rain_count_size})
@@ -249,7 +269,7 @@ class WLL(weewx.drivers.AbstractDevice):
                             _packet.update({'soilMoist1': condition["moist_soil_1"]})
 
                         if "moist_soil_2" in condition:  # most recent valid soil moisture slot 2 **(|cb|)**
-                            _packet.update({'soilMoist3': condition["moist_soil_2"]})
+                            _packet.update({'soilMoist2': condition["moist_soil_2"]})
 
                         if "moist_soil_3" in condition:  # most recent valid soil moisture slot 3 **(|cb|)**
                             _packet.update({'soilMoist3': condition["moist_soil_3"]})
@@ -267,7 +287,7 @@ class WLL(weewx.drivers.AbstractDevice):
                     elif data_structure_type == 3:
 
                         if "bar_sea_level" in condition:  # most recent bar sensor reading with elevation adjustment **(inches)**
-                            _packet.update({'barometer': condition["bar_sea_level"]})
+                            _packet.update({self.pressure_field: condition["bar_sea_level"]})
 
                         if "bar_absolute" in condition:  # raw bar sensor reading **(inches)**
                             _packet.update({'pressure': condition["bar_absolute"]})
@@ -288,7 +308,7 @@ class WLL(weewx.drivers.AbstractDevice):
 
                 time.sleep(self.poll_interval)
 
-            except Exception as exception:
+            except (ValueError, KeyError, TypeError) as exception:
 
                 logerr("Error parsing the WeatherLink Live json data.")
                 logerr("%s" % exception)
@@ -298,5 +318,4 @@ class WLL(weewx.drivers.AbstractDevice):
                 pass  # Continue without exiting.
 
 
-wll = WLL()
-wll.genLoopPackets()
+

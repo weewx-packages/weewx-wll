@@ -59,3 +59,29 @@ or
 ```
 pip install requests
 ```
+## Independent continuation
+
+This repository continues `jonotaegi/weewx-wll` with its original Git history.
+Original authors retain their copyrights. The driver is GPL-3.0-or-later;
+`install.py` is GPL-3.0-only. See `LICENSE` and source headers.
+
+Version 0.2.0 supports WeeWX 5 and Python 3.10 through 3.14. Install with:
+
+```
+weectl extension install https://github.com/weewx-packages/weewx-wll/archive/refs/tags/v0.2.0.zip
+```
+
+Set `host` in `[WLL]`. Optional `timeout` defaults to 5 seconds. To use separate
+transmitters, set `iss_id` to the ISS transmitter's `txid`, and `wind_id` to the
+anemometer transmitter's `txid`. Without these settings, non-null measurements
+from all transmitters are combined. Select explicit IDs if multiple transmitters
+report the same measurement.
+
+`dayRain` is the device's daily counter converted to inches. It is available in
+LOOP packets without adding an archive database column. `bar_sea_level` maps to
+`altimeter` by default. `pressure_field = barometer` retains the previous mapping.
+The raw `bar_absolute` value maps to `pressure` in either mode.
+
+Run `python -m pytest -q tests` for HTTP and packet regression tests. Tests use
+fixtures and a local HTTP receiver. An actual WLL and separated transmitters
+remain necessary to verify radio reception and device firmware behavior.
