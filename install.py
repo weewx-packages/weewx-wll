@@ -11,7 +11,7 @@ def loader():
 class WLLInstaller(ExtensionInstaller):
     def __init__(self):
         super(WLLInstaller, self).__init__(
-            version="0.2.1",
+            version="0.2.2",
             name='wll',
             description='Periodically poll weather data from a WeatherLink Live device',
             author="Jon Otaegi",

@@ -101,3 +101,12 @@ def test_real_http_and_timeout(monkeypatch):
     with pytest.raises(RuntimeError, match='retry wait'):
         next(driver.genLoopPackets())
     module.requests.get.assert_called_once_with(driver.service_url, timeout=5.0)
+
+
+def test_gust_direction_uses_direction_at_peak_speed():
+    result = packet([{'data_structure_type': 1,
+                      'wind_speed_hi_last_10_min': 18,
+                      'wind_dir_at_hi_speed_last_10_min': 0,
+                      'wind_dir_scalar_avg_last_10_min': 180}])
+    assert result['windGust'] == 18
+    assert result['windGustDir'] == 0

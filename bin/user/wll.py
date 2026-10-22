@@ -33,7 +33,7 @@ import weewx
 import weewx.drivers
 
 DRIVER_NAME = 'WLL'
-DRIVER_VERSION = '0.2.1'
+DRIVER_VERSION = '0.2.2'
 
 MM_TO_INCH = 0.0393701
 
@@ -192,8 +192,8 @@ class WLL(weewx.drivers.AbstractDevice):
                         if "wind_speed_hi_last_10_min" in condition:  # maximum wind speed over last 10 min **(mph)**
                             _packet.update({'windGust': condition["wind_speed_hi_last_10_min"]})
 
-                        if "wind_dir_scalar_avg_last_10_min" in condition:  # gust wind direction over last 10 min **(°degree)**
-                            _packet.update({'windGustDir': condition["wind_dir_scalar_avg_last_10_min"]})
+                        if "wind_dir_at_hi_speed_last_10_min" in condition:  # gust wind direction over last 10 min **(°degree)**
+                            _packet.update({'windGustDir': condition["wind_dir_at_hi_speed_last_10_min"]})
 
                         if "rain_size" in condition:  # rain collector type/size **(0: Reserved, 1: 0.01", 2: 0.2 mm, 3:  0.1 mm, 4: 0.001")**
 
