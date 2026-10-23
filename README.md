@@ -1,79 +1,99 @@
-# WeatherLink Live local HTTP driver for WeeWX
+# WeatherLink Live
 
-Poll a Davis WeatherLink Live device's local `/v1/current_conditions` HTTP API.
-The driver reads weather, barometric and indoor observations, including separate
-ISS and wind transmitters. It uses local polling, not WeatherLink cloud access,
-UDP real-time broadcasts or historical archive downloads.
+A WeeWX driver that polls the local `/v1/current_conditions` HTTP API of a
+Davis WeatherLink Live (WLL). It reads ISS, leaf/soil, barometer and indoor
+records, including separate ISS and wind transmitters. It does not use the
+WeatherLink cloud, the UDP real-time broadcast or historical archive downloads.
 
-Release 0.2.2 is an independent continuation of
-[jonotaegi/weewx-wll](https://github.com/jonotaegi/weewx-wll), with explicit
-transmitter selection, HTTP timeouts and rain/pressure mapping corrections.
+This is an independent continuation of
+[jonotaegi/weewx-wll](https://github.com/jonotaegi/weewx-wll). See
+[NOTICE](NOTICE).
 
-## Install
+## Requirements
 
-An existing WeeWX station is required. Replace `/path/to/weewx.conf`
-with its configuration file before running the commands.
+- A WeatherLink Live on the local network. The WeeWX host must reach it over
+  HTTP on port 80.
+- The Python package `requests`, installed in the Python environment that runs
+  WeeWX:
 
-The catalog release requires Python >=3.10 and WeeWX >=5.2,<6.
+  ```sh
+  python -m pip install 'requests>=2,<3'
+  ```
 
-Before running the commands, activate the existing virtual environment that
-runs your WeeWX service. Both `python` and `weectl` must come from that
-environment. For an OS-packaged WeeWX installation, use compatible distribution
-packages instead, or migrate WeeWX and its service to a virtual environment
-first. Installing into an unrelated virtual environment will not supply the
-running service with dependencies.
+  Run this with the `python` of the WeeWX virtual environment. For an
+  OS-packaged WeeWX, install the distribution package for `requests` instead.
 
-Install `requests` in the WeeWX Python environment:
+## Installation
+
+Install `wll` from the [WeeWX packages catalog](https://github.com/weewx-packages/catalog/blob/main/packages/wll.md).
+The catalog page lists the current release, its WeeWX and Python
+requirements, and the install, update and removal commands.
+
+Then select the driver and restart WeeWX:
 
 ```sh
-python -m pip install 'requests>=2,<3'
-```
-
-Use the `weectl` from your WeeWX Python environment:
-
-```sh
-weectl extension install https://github.com/weewx-packages/weewx-wll/releases/download/v0.2.2/weewx-wll-0.2.2.zip --config=/path/to/weewx.conf
 weectl station reconfigure --driver=user.wll --config=/path/to/weewx.conf
 ```
 
-Stock WeeWX 5 accepts this fixed URL or a downloaded copy of the same archive.
-No catalog integration is required. Restart WeeWX yourself after configuration
-changes.
-
-## Configure local polling
+## Configuration
 
 ```ini
 [Station]
     station_type = WLL
+
 [WLL]
     driver = user.wll
     host = 192.0.2.10
-    poll_interval = 10
-    timeout = 5
-    iss_id = 1
-    wind_id = 1
 ```
 
-Replace the address and transmitter IDs. The WeeWX host must reach the WLL on
-your LAN. `poll_interval` must be at least 10 seconds. `iss_id` selects the
-ISS `txid`; set `wind_id` to a different transmitter for a separate anemometer.
-Without explicit IDs, non-null values from all transmitters can combine, so
-select them when observations overlap. `wind_id` defaults to `iss_id`.
+Options in `[WLL]`:
 
-`dayRain` is the daily counter in inches; the driver calculates packet rain
-from its running counters. `bar_sea_level` maps to `altimeter` by default;
-`pressure_field = barometer` restores the older mapping. `bar_absolute` maps
-to `pressure` in either mode. Extra fields need archive columns to retain them;
-current LOOP data alone do not add columns.
+| Option | Default | Meaning |
+|---|---|---|
+| `host` | none, required | Hostname or IP address of the WLL. The installer writes `1.2.3.4`. |
+| `poll_interval` | `10` | Seconds between requests. Values below 10 are used, but log an error. |
+| `timeout` | `5` | HTTP timeout in seconds. After a failed request the driver logs the error and retries after 2 seconds. |
+| `iss_id` | none | `txid` of the ISS transmitter. Without it, records from all transmitters are merged. |
+| `wind_id` | value of `iss_id` | `txid` of a separate wind transmitter. All `wind_*` fields, including `wind_chill`, come from this transmitter. |
+| `pressure_field` | `altimeter` | WeeWX field for `bar_sea_level`: `altimeter` or `barometer`. |
+| `hardware` | none | Hardware name the driver reports to WeeWX. |
 
-Restart WeeWX and inspect its logs. A top-level `loop_on_init = true` lets
-WeeWX retry initialization after temporary network failures. This refresh used
-no WLL device or separated transmitters. The driver's fixture checks do not
-establish radio reception or firmware behavior. See the
+Without `iss_id` and `wind_id`, every transmitter contributes its non-null
+values and a later record overwrites an earlier one. Set both when several
+transmitters report the same fields.
+
+The WLL reports in US units. `bar_absolute` always maps to `pressure`.
+`dayRain` comes from the daily rain counter. Packet `rain` is the increase of
+the storm counter between two polls, so the first packet after a start reports
+no rain. Rain fields are only set for the collector sizes 0.01 in, 0.2 mm,
+0.1 mm and 0.001 in.
+
+The `wview_extended` schema has an archive column for every field the driver
+writes. With another schema, fields without a column are not stored.
+
+A top-level `loop_on_init = true` in `weewx.conf` lets WeeWX retry the driver
+start after a network failure. The
 [local API documentation](https://weatherlink.github.io/weatherlink-live-local-api/)
-for endpoint and discovery background.
+describes the endpoint and device discovery.
 
-Copyright 2020 Jon Otaegi. The driver is GPL-3.0-or-later; `install.py` is
-GPL-3.0-only. See [LICENSE](LICENSE), [NOTICE](NOTICE) and source headers.
+## Limitations
 
-<!-- Documentation updated 2026-10-23 by weewx-packages. -->
+- Tested only against recorded API responses and a local test server, not
+  against a WLL device or separate transmitters. Radio reception and firmware
+  behaviour are not covered.
+- Archives recorded with the original driver differ in three fields. It
+  stored `bar_sea_level` as `barometer`; `pressure_field = barometer` keeps
+  that mapping. It converted rain from the 0.1 mm and 0.001 in collectors
+  with wrong factors. It took `windGustDir` from the 10-minute average
+  direction instead of the direction at the peak speed.
+
+## Development
+
+```sh
+python -m pytest -q tests
+```
+
+## License
+
+Copyright 2020 Jon Otaegi. The driver is GPL-3.0-or-later, `install.py` is
+GPL-3.0-only. See [LICENSE](LICENSE), [NOTICE](NOTICE) and the source headers.
