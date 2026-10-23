@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # Modified 2026-10-22 by weewx-packages.
+# Modified 2026-10-23 by weewx-packages: take wind_chill from the ISS transmitter.
 # -*- coding: utf-8 -*-
 # WeatherLink Live (WLL) driver for WeeWX
 #
@@ -161,9 +162,15 @@ class WLL(weewx.drivers.AbstractDevice):
                         is_iss = self.iss_id is None or txid == str(self.iss_id)
                         is_wind = self.wind_id is None or txid == str(self.wind_id)
                         # A separate wind transmitter reports null ISS fields.
+                        # wind_chill is not a wind field: like thw_index, the
+                        # transmitter that carries both the thermometer and the
+                        # anemometer computes it. With a separate wind
+                        # transmitter, only the ISS record can carry it, and
+                        # only when WeatherLink.com imports the wind into it.
                         condition = {key: value for key, value in condition.items()
                                      if value is not None and
-                                     (is_wind if key.startswith('wind_') else is_iss)}
+                                     (is_wind if key.startswith('wind_') and key != 'wind_chill'
+                                      else is_iss)}
 
                     # 1 = ISS Current Conditions record
                     if data_structure_type == 1:

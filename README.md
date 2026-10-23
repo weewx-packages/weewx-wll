@@ -54,13 +54,20 @@ Options in `[WLL]`:
 | `poll_interval` | `10` | Seconds between requests. Values below 10 are used, but log an error. |
 | `timeout` | `5` | HTTP timeout in seconds. After a failed request the driver logs the error and retries after 2 seconds. |
 | `iss_id` | none | `txid` of the ISS transmitter. Without it, records from all transmitters are merged. |
-| `wind_id` | value of `iss_id` | `txid` of a separate wind transmitter. All `wind_*` fields, including `wind_chill`, come from this transmitter. |
+| `wind_id` | value of `iss_id` | `txid` of a separate wind transmitter. All `wind_*` fields except `wind_chill` come from this transmitter. |
 | `pressure_field` | `altimeter` | WeeWX field for `bar_sea_level`: `altimeter` or `barometer`. |
 | `hardware` | none | Hardware name the driver reports to WeeWX. |
 
 Without `iss_id` and `wind_id`, every transmitter contributes its non-null
 values and a later record overwrites an earlier one. Set both when several
 transmitters report the same fields.
+
+`windchill` comes from the `iss_id` transmitter. The WLL computes wind chill
+only on a transmitter that has both the thermometer and the anemometer. With
+a separate wind transmitter, the ISS record carries wind chill only when the
+wind import into the ISS is enabled on WeatherLink.com. Otherwise the driver
+sets no `windchill`, and with the default `windchill = prefer_hardware` in
+`[StdWXCalculate]` WeeWX calculates it.
 
 The WLL reports in US units. `bar_absolute` always maps to `pressure`.
 `dayRain` comes from the daily rain counter. Packet `rain` is the increase of

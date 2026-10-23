@@ -56,6 +56,15 @@ def test_selected_transmitters():
     assert result['windSpeed'] == 3
 
 
+def test_wind_chill_comes_from_iss_transmitter():
+    result = packet([
+        {'data_structure_type': 1, 'txid': 1, 'wind_chill': 25},
+        {'data_structure_type': 1, 'txid': 2, 'wind_chill': 99, 'wind_speed_last': 5},
+    ], iss_id=1, wind_id=2)
+    assert result['windchill'] == 25
+    assert result['windSpeed'] == 5
+
+
 @pytest.mark.parametrize('size,inches', [(1, .01), (2, .2 / 25.4), (3, .1 / 25.4), (4, .001)])
 def test_daily_rain_units(size, inches):
     result = packet([{'data_structure_type': 1, 'rain_size': size, 'rainfall_daily': 10}])
